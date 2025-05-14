@@ -167,15 +167,20 @@
         createYearSelector();
         
         // 初始化所有图表
-        const chartDoms = [
-          'domesticVsForeignBarChart', 'ScatterPlot', 'ScatterPlotRTvsProfit', 
-          'PieChart', 'YearlyProfitLine', 'StudioRadar', 'PCAScatter'
+        const chartsConfig = [
+          {id: 'domesticVsForeignBarChart', key: 'domesticVsForeign'},
+          {id: 'ScatterPlot', key: 'budgetVsGross'},
+          {id: 'ScatterPlotRTvsProfit', key: 'rtVsProfit'},
+          {id: 'PieChart', key: 'genrePie'},
+          {id: 'YearlyProfitLine', key: 'yearlyProfit'},
+          {id: 'StudioRadar', key: 'studioRadar'},
+          {id: 'PCAScatter', key: 'pcaScatter'}
         ];
         
-        chartDoms.forEach(domId => {
-          const chartDom = document.getElementById(domId);
+        chartsConfig.forEach(config => {
+          const chartDom = document.getElementById(config.id);
           if (chartDom) {
-            charts[domId] = echarts.init(chartDom);
+            charts[config.key] = echarts.init(chartDom);
           }
         });
         
