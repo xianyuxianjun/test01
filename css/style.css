@@ -1,0 +1,215 @@
+/* 大屏全局样式 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', 'Microsoft YaHei', sans-serif;
+  }
+  
+  body {
+    background-color: #f0f2f5;
+    color: #333;
+    min-height: 100vh;
+  }
+  
+  /* 大屏头部样式 */
+  .dashboard-header {
+    background: linear-gradient(to right, #1a2980, #26d0ce);
+    color: white;
+    padding: 15px 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .header-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .header-title h1 {
+    font-size: 24px;
+    font-weight: 500;
+  }
+  
+  .time-display {
+    font-size: 18px;
+    font-weight: 400;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 5px 10px;
+    border-radius: 4px;
+  }
+  
+  .header-subtitle {
+    margin-top: 10px;
+    display: flex;
+    gap: 20px;
+    font-size: 14px;
+  }
+  
+  /* 大屏主体容器 */
+  .dashboard-container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .dashboard-row {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+  }
+  
+  /* 卡片样式 */
+  .dashboard-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+  
+  .full-width {
+    width: 100%;
+  }
+  
+  .half-width {
+    width: calc(50% - 10px);
+  }
+  
+  .third-width {
+    width: calc(33.333% - 14px);
+  }
+  
+  .card-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .card-header h2 {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    display: flex;
+    align-items: center;
+  }
+  
+  .chart-subtitle {
+    font-size: 12px;
+    color: #999;
+    margin-left: 10px;
+  }
+  
+  .card-body {
+    padding: 15px;
+    height: calc(100% - 52px);
+  }
+  
+  /* 图表尺寸定义 */
+  .chart-large {
+    width: 100%;
+    height: 500px;
+  }
+  
+  .chart-medium {
+    width: 100%;
+    height: 350px;
+  }
+  
+  .chart-small {
+    width: 100%;
+    height: 300px;
+  }
+  
+  /* 图标样式 */
+  .icon-chart, .icon-scatter, .icon-line, .icon-heatmap, 
+  .icon-boxplot, .icon-radar, .icon-pca {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-color: #5470c6;
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+  }
+  
+  .icon-scatter {
+    background-color: #91cc75;
+  }
+  
+  .icon-line {
+    background-color: #fac858;
+  }
+  
+  .icon-heatmap {
+    background-color: #ee6666;
+  }
+  
+  .icon-boxplot {
+    background-color: #73c0de;
+  }
+  
+  .icon-radar {
+    background-color: #3ba272;
+  }
+  
+  .icon-pca {
+    background-color: #fc8452;
+  }
+  
+  /* 大屏底部样式 */
+  .dashboard-footer {
+    background: #fff;
+    padding: 15px 20px;
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+  }
+  
+  .footer-info {
+    display: flex;
+    justify-content: space-around;
+    font-size: 14px;
+    color: #666;
+  }
+  
+  /* 选择器样式 */
+  .selector-container {
+    margin-bottom: 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .year-selector {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    margin-left: 5px;
+    cursor: pointer;
+  }
+  
+  /* 媒体查询 - 响应式布局 */
+  @media (max-width: 1200px) {
+    .dashboard-row {
+      flex-direction: column;
+    }
+    
+    .half-width, .third-width {
+      width: 100%;
+    }
+  }
+  
+  /* 工具提示样式 */
+  #tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1000;
+    font-size: 12px;
+    max-width: 300px;
+  }
