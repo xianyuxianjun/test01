@@ -5,50 +5,112 @@ let charts = {}; // 存储所有图表实例
 // 数据加载和处理
 async function loadData() {
   try {
+    console.log('开始加载数据...');
+    // 如果数据已加载，不再重复加载
+    if (allMovies.length > 0) {
+      console.log('数据已加载，电影总数:', allMovies.length);
+      return allMovies;
+    }
+    
     // 加载所有年份的数据
     const years = [2007, 2008, 2009, 2010, 2011];
+    let loadedCount = 0;
+    
     for (const year of years) {
-      let filename;
-      if (year <= 2008) {
-        filename = `data/_Most_Profitable_Hollywood_Stories_US_${year}.xlsx`;
-      } else if (year === 2009) {
-        filename = `data/_Most_Profitable_Hollywood_Stories_US_${year}.xlsx`;
-      } else {
-        filename = `data/_Most Profitable Hollywood Stories - US ${year}.xlsx`;
+      try {
+        let filename;
+        if (year <= 2008) {
+          filename = `data/_Most_Profitable_Hollywood_Stories_US_${year}.xlsx`;
+        } else if (year === 2009) {
+          filename = `data/_Most_Profitable_Hollywood_Stories_US_${year}.xlsx`;
+        } else {
+          filename = `data/_Most Profitable Hollywood Stories - US ${year}.xlsx`;
+        }
+        
+        console.log(`尝试加载数据文件: ${filename}`);
+        const response = await fetch(filename);
+        
+        if (!response.ok) {
+          throw new Error(`加载文件 ${filename} 失败: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.arrayBuffer();
+        if (!data || data.byteLength === 0) {
+          throw new Error(`文件 ${filename} 内容为空`);
+        }
+        
+        console.log(`成功获取文件: ${filename}, 大小: ${data.byteLength} 字节`);
+        
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // 获取第一个工作表
+        const firstSheetName = workbook.SheetNames[0];
+        if (!firstSheetName) {
+          throw new Error(`文件 ${filename} 中没有工作表`);
+        }
+        
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // 转换为JSON
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        console.log(`${year}年数据解析完成，共 ${jsonData.length} 条记录`);
+        
+        // 数据验证
+        if (!jsonData || jsonData.length === 0) {
+          throw new Error(`${year}年没有有效数据记录`);
+        }
+        
+        // 添加年份字段
+        const moviesWithYear = jsonData.map(movie => ({
+          ...movie,
+          Year: year,
+          // 确保所有数值字段都是数字类型
+          'Profitability': parseFloat(movie['Profitability']) || 0,
+          'Budget (million $)': parseFloat(movie['Budget']) || 0,
+          'Domestic Gross (million $)': parseFloat(movie['Domestic Gross']) || 0,
+          'Foreign Gross (million $)': parseFloat(movie['Foreign Gross']) || 0,
+          'Worldwide Gross (million $)': parseFloat(movie['Worldwide Gross']) || 0,
+          'Rotten Tomatoes %': parseFloat(movie['Rotten Tomatoes']) || 0,
+          'Audience score %': parseFloat(movie['Audience Score']) || 0,
+        }));
+        
+        // 调试输出第一条记录
+        if (moviesWithYear.length > 0) {
+          console.log(`${year}年第一条数据示例:`, JSON.stringify(moviesWithYear[0]));
+        }
+        
+        allMovies = [...allMovies, ...moviesWithYear];
+        loadedCount++;
+        
+      } catch (yearError) {
+        console.error(`加载${year}年数据时出错:`, yearError);
       }
-      
-      const response = await fetch(filename);
-      const data = await response.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
-      
-      // 获取第一个工作表
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      
-      // 转换为JSON
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      
-      // 添加年份字段
-      const moviesWithYear = jsonData.map(movie => ({
-        ...movie,
-        Year: year,
-        // 确保所有数值字段都是数字类型
-        'Profitability': parseFloat(movie['Profitability']) || 0,
-        'Budget (million $)': parseFloat(movie['Budget (million $)']) || 0,
-        'Domestic Gross (million $)': parseFloat(movie['Domestic Gross (million $)']) || 0,
-        'Foreign Gross (million $)': parseFloat(movie['Foreign Gross (million $)']) || 0,
-        'Worldwide Gross (million $)': parseFloat(movie['Worldwide Gross (million $)']) || 0,
-        'Rotten Tomatoes %': parseFloat(movie['Rotten Tomatoes %']) || 0,
-        'Audience score %': parseFloat(movie['Audience score %']) || 0,
-      }));
-      
-      allMovies = [...allMovies, ...moviesWithYear];
+    }
+    
+    if (loadedCount === 0) {
+      throw new Error('没有成功加载任何年份的数据');
     }
     
     console.log('数据加载完成，电影总数:', allMovies.length);
+    
+    // 数据完整性验证
+    if (allMovies.length === 0) {
+      throw new Error('加载的电影数据为空');
+    }
+    
+    // 检查必要的字段
+    const sampleMovie = allMovies[0];
+    const requiredFields = ['Film', 'Year', 'Budget (million $)', 'Domestic Gross (million $)', 'Foreign Gross (million $)'];
+    const missingFields = requiredFields.filter(field => !(field in sampleMovie));
+    
+    if (missingFields.length > 0) {
+      console.warn('数据中缺少必要字段:', missingFields.join(', '));
+    }
+    
     return allMovies;
   } catch (error) {
     console.error('加载数据时出错:', error);
+    // 返回空数组，表示加载失败
     return [];
   }
 }
@@ -189,121 +251,202 @@ function createVisualizations() {
 // 1. 国内票房与国外票房对比柱状图
 function createDomesticVsForeignBarChart(year) {
   const chartDom = document.getElementById('domesticVsForeignBarChart');
-  charts.domesticVsForeign = echarts.init(chartDom);
-  updateDomesticVsForeignBarChart(year);
+  if (!chartDom) {
+    console.error('找不到图表DOM元素：domesticVsForeignBarChart');
+    return;
+  }
   
-  // 添加年份选择器
-  const selectorContainer = document.createElement('div');
-  selectorContainer.className = 'selector-container';
-  selectorContainer.innerHTML = `
-    <label for="yearSelectorBarChart">选择年份: </label>
-    <select id="yearSelectorBarChart" class="year-selector" data-target="domesticVsForeign">
-      <!-- 选项将由createYearSelector函数填充 -->
-    </select>
-  `;
-  chartDom.parentNode.insertBefore(selectorContainer, chartDom);
+  console.log('初始化国内票房与国外票房对比图表...');
+  try {
+    charts.domesticVsForeign = echarts.init(chartDom);
+    console.log('图表初始化成功，DOM尺寸:', chartDom.offsetWidth, 'x', chartDom.offsetHeight);
+    
+    // 先设置一个简单的选项确认图表是否工作
+    charts.domesticVsForeign.setOption({
+      title: {
+        text: '正在加载数据...',
+        left: 'center'
+      },
+      series: []
+    });
+    
+    // 添加年份选择器
+    const selectorContainer = document.createElement('div');
+    selectorContainer.className = 'selector-container';
+    selectorContainer.innerHTML = `
+      <label for="yearSelectorBarChart">选择年份: </label>
+      <select id="yearSelectorBarChart" class="year-selector" data-target="domesticVsForeign">
+        <!-- 选项将由createYearSelector函数填充 -->
+      </select>
+    `;
+    chartDom.parentNode.insertBefore(selectorContainer, chartDom);
+    
+    // 更新图表数据
+    updateDomesticVsForeignBarChart(year);
+  } catch (error) {
+    console.error('初始化国内票房与国外票房对比图表时出错:', error);
+  }
 }
 
 function updateDomesticVsForeignBarChart(year) {
-  const movies = getMoviesByYear(year);
-  
-  // 按照国内票房排序前20部电影
-  const topMovies = [...movies]
-    .sort((a, b) => (b['Domestic Gross (million $)'] + b['Foreign Gross (million $)']) 
-          - (a['Domestic Gross (million $)'] + a['Foreign Gross (million $)']))
-    .slice(0, 20);
-  
-  const filmNames = topMovies.map(movie => movie.Film);
-  const domesticGross = topMovies.map(movie => movie['Domestic Gross (million $)']);
-  const foreignGross = topMovies.map(movie => movie['Foreign Gross (million $)']);
-  const years = topMovies.map(movie => movie.Year);
-  
-  const option = {
-    title: {
-      text: year === 'all' ? '2007-2011年电影国内外票房对比' : `${year}年电影国内外票房对比`,
-      left: 'center'
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      },
-      formatter: function(params) {
-        const movieIndex = params[0].dataIndex;
-        const movie = topMovies[movieIndex];
-        return `<div>
-          <strong>${movie.Film}</strong> (${movie.Year})<br/>
-          国内票房: ${movie['Domestic Gross (million $)']} 百万美元<br/>
-          国外票房: ${movie['Foreign Gross (million $)']} 百万美元<br/>
-          总票房: ${movie['Worldwide Gross (million $)']} 百万美元<br/>
-          制片厂: ${movie['Lead Studio']}<br/>
-          类型: ${movie.Genre}
-        </div>`;
-      }
-    },
-    legend: {
-      data: ['国内票房 (百万美元)', '国外票房 (百万美元)'],
-      top: 30
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '15%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: filmNames,
-      axisLabel: {
-        interval: 0,
-        rotate: 45,
-        textStyle: {
-          fontSize: 10
-        }
-      }
-    },
-    yAxis: {
-      type: 'value',
-      name: '票房 (百万美元)'
-    },
-    series: [
-      {
-        name: '国内票房 (百万美元)',
-        type: 'bar',
-        stack: 'total',
-        emphasis: {
-          focus: 'series'
+  try {
+    // 检查图表实例是否存在
+    if (!charts.domesticVsForeign) {
+      console.error('国内票房与国外票房对比图表实例不存在');
+      return;
+    }
+    
+    // 获取数据
+    const movies = getMoviesByYear(year);
+    
+    if (!movies || movies.length === 0) {
+      console.error('没有找到符合条件的电影数据');
+      // 显示空数据提示
+      charts.domesticVsForeign.setOption({
+        title: {
+          text: '没有可用的电影数据',
+          left: 'center'
         },
-        data: domesticGross,
-        itemStyle: {
-          color: '#5470c6'
+        series: []
+      });
+      return;
+    }
+    
+    console.log(`处理${year === 'all' ? '所有年份' : year + '年'}的${movies.length}部电影数据`);
+    
+    // 按照国内票房排序前20部电影
+    const topMovies = [...movies]
+      .filter(movie => 
+        !isNaN(movie['Domestic Gross (million $)']) && 
+        !isNaN(movie['Foreign Gross (million $)']))
+      .sort((a, b) => (b['Domestic Gross (million $)'] + b['Foreign Gross (million $)']) 
+            - (a['Domestic Gross (million $)'] + a['Foreign Gross (million $)']))
+      .slice(0, 20);
+    
+    if (topMovies.length === 0) {
+      console.error('筛选后没有有效的电影数据');
+      charts.domesticVsForeign.setOption({
+        title: {
+          text: '没有有效的电影数据',
+          left: 'center'
+        },
+        series: []
+      });
+      return;
+    }
+    
+    console.log('处理后的Top电影数据:', topMovies.length, '部');
+    // 打印第一条数据用于调试
+    console.log('第一部电影数据示例:', JSON.stringify(topMovies[0]));
+    
+    const filmNames = topMovies.map(movie => movie.Film);
+    const domesticGross = topMovies.map(movie => movie['Domestic Gross (million $)']);
+    const foreignGross = topMovies.map(movie => movie['Foreign Gross (million $)']);
+    const years = topMovies.map(movie => movie.Year);
+    
+    console.log('电影名称数组:', filmNames);
+    console.log('国内票房数组:', domesticGross);
+    console.log('国外票房数组:', foreignGross);
+    
+    const option = {
+      title: {
+        text: year === 'all' ? '2007-2011年电影国内外票房对比' : `${year}年电影国内外票房对比`,
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        },
+        formatter: function(params) {
+          const movieIndex = params[0].dataIndex;
+          const movie = topMovies[movieIndex];
+          return `<div>
+            <strong>${movie.Film}</strong> (${movie.Year})<br/>
+            国内票房: ${movie['Domestic Gross (million $)']} 百万美元<br/>
+            国外票房: ${movie['Foreign Gross (million $)']} 百万美元<br/>
+            总票房: ${movie['Worldwide Gross (million $)']} 百万美元<br/>
+            制片厂: ${movie['Lead Studio']}<br/>
+            类型: ${movie.Genre}
+          </div>`;
         }
       },
-      {
-        name: '国外票房 (百万美元)',
-        type: 'bar',
-        stack: 'total',
-        emphasis: {
-          focus: 'series'
-        },
-        data: foreignGross,
-        itemStyle: {
-          color: '#91cc75'
+      legend: {
+        data: ['国内票房 (百万美元)', '国外票房 (百万美元)'],
+        top: 30
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '15%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        data: filmNames,
+        axisLabel: {
+          interval: 0,
+          rotate: 45,
+          textStyle: {
+            fontSize: 10
+          }
         }
+      },
+      yAxis: {
+        type: 'value',
+        name: '票房 (百万美元)'
+      },
+      series: [
+        {
+          name: '国内票房 (百万美元)',
+          type: 'bar',
+          stack: 'total',
+          emphasis: {
+            focus: 'series'
+          },
+          data: domesticGross,
+          itemStyle: {
+            color: '#5470c6'
+          }
+        },
+        {
+          name: '国外票房 (百万美元)',
+          type: 'bar',
+          stack: 'total',
+          emphasis: {
+            focus: 'series'
+          },
+          data: foreignGross,
+          itemStyle: {
+            color: '#91cc75'
+          }
+        }
+      ],
+      dataZoom: [
+        {
+          type: 'slider',
+          show: true,
+          start: 0,
+          end: 100,
+          bottom: 0
+        }
+      ]
+    };
+    
+    console.log('为图表设置选项...');
+    charts.domesticVsForeign.setOption(option);
+    console.log('国内票房与国外票房对比图表已更新');
+    
+    // 强制重新渲染图表
+    setTimeout(() => {
+      if (charts.domesticVsForeign) {
+        charts.domesticVsForeign.resize();
+        console.log('图表大小已重置');
       }
-    ],
-    dataZoom: [
-      {
-        type: 'slider',
-        show: true,
-        start: 0,
-        end: 100,
-        bottom: 0
-      }
-    ]
-  };
-  
-  charts.domesticVsForeign.setOption(option);
+    }, 100);
+  } catch (error) {
+    console.error('更新国内票房与国外票房对比图表时出错:', error);
+  }
 }
 
 // 2.1 预算 vs. 票房收入散点图

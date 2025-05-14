@@ -5,6 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>好莱坞电影数据可视化大屏</title>
   <script src="js/echarts.min.js"></script>
+  <script>
+    // 检查Echarts是否成功加载
+    window.addEventListener('load', function() {
+      if (typeof echarts === 'undefined') {
+        console.error('Echarts库加载失败，尝试从CDN加载');
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js';
+        script.onload = function() {
+          console.log('Echarts从CDN加载成功');
+          // 如果页面已经加载，重新初始化图表
+          if (allMovies && allMovies.length > 0) {
+            createVisualizations();
+          }
+        };
+        script.onerror = function() {
+          console.error('Echarts从CDN加载失败，请检查网络连接');
+          alert('图表库加载失败，请刷新页面重试');
+        };
+        document.head.appendChild(script);
+      } else {
+        console.log('Echarts库成功加载');
+      }
+    });
+  </script>
   <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -32,7 +56,7 @@
           <h2><i class="icon-chart"></i> 国内票房与国外票房对比</h2>
         </div>
         <div class="card-body">
-          <div id="domesticVsForeignBarChart" style="width: 100%; height: 400px;"></div>
+          <div id="domesticVsForeignBarChart" style="width: 100%; height: 450px; position: relative;"></div>
         </div>
       </div>
     </div>
@@ -115,24 +139,57 @@
   <script>
     // 初始化电影数量显示和更新信息
     document.addEventListener('DOMContentLoaded', async function() {
-      // 加载数据
-      await loadData();
-      
-      // 更新电影数量显示
-      document.getElementById('movieCount').textContent = allMovies.length;
-      
-      // 设置固定更新日期
-      const updateDate = new Date('2023-08-12');
-      document.getElementById('updateDate').textContent = 
-        updateDate.toLocaleDateString('zh-CN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
-      
-      // 初始化所有图表
-      createVisualizations();
+      try {
+        // 加载数据
+        const movies = await loadData();
+        
+        // 更新电影数量显示
+        document.getElementById('movieCount').textContent = allMovies.length;
+        
+        // 设置固定更新日期
+        const updateDate = new Date('2023-08-12');
+        document.getElementById('updateDate').textContent = 
+          updateDate.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+        
+        // 初始化所有图表
+        createVisualizations();
+        
+        // 添加图表状态检查
+        setTimeout(checkChartsStatus, 2000);
+      } catch (error) {
+        console.error('页面初始化出错:', error);
+      }
     });
+
+    // 添加图表状态检查函数
+    function checkChartsStatus() {
+      console.log('检查图表状态...');
+      
+      // 检查国内票房与国外票房对比图表
+      const barChartDom = document.getElementById('domesticVsForeignBarChart');
+      if (barChartDom && (!charts.domesticVsForeign || !charts.domesticVsForeign.getOption().series || charts.domesticVsForeign.getOption().series.length === 0)) {
+        console.log('国内票房与国外票房对比图表需要修复');
+        
+        // 重新初始化图表
+        charts.domesticVsForeign = echarts.init(barChartDom);
+        updateDomesticVsForeignBarChart('all');
+      }
+      
+      // 检查其他图表...
+      
+      // 强制执行图表大小调整
+      Object.values(charts).forEach(chart => {
+        if (chart && chart.resize) {
+          chart.resize();
+        }
+      });
+      
+      console.log('图表状态检查完成');
+    }
 
     // 实时时钟更新
     function updateTime() {
@@ -161,36 +218,44 @@
 
     // 修改主初始化函数
     function createVisualizations() {
-      // 先尝试加载和处理数据
-      loadData().then(() => {
-        // 创建所有年份选择器
-        createYearSelector();
-        
-        // 初始化所有图表
-        const chartsConfig = [
-          {id: 'domesticVsForeignBarChart', key: 'domesticVsForeign'},
-          {id: 'ScatterPlot', key: 'budgetVsGross'},
-          {id: 'ScatterPlotRTvsProfit', key: 'rtVsProfit'},
-          {id: 'PieChart', key: 'genrePie'},
-          {id: 'YearlyProfitLine', key: 'yearlyProfit'},
-          {id: 'StudioRadar', key: 'studioRadar'},
-          {id: 'PCAScatter', key: 'pcaScatter'}
-        ];
-        
-        chartsConfig.forEach(config => {
-          const chartDom = document.getElementById(config.id);
-          if (chartDom) {
+      // 检查数据是否已加载完成
+      if (allMovies.length === 0) {
+        console.error('数据尚未加载完成，无法创建图表');
+        return;
+      }
+      
+      // 创建所有年份选择器
+      createYearSelector();
+      
+      // 初始化所有图表
+      const chartsConfig = [
+        {id: 'domesticVsForeignBarChart', key: 'domesticVsForeign'},
+        {id: 'ScatterPlot', key: 'budgetVsGross'},
+        {id: 'ScatterPlotRTvsProfit', key: 'rtVsProfit'},
+        {id: 'PieChart', key: 'genrePie'},
+        {id: 'YearlyProfitLine', key: 'yearlyProfit'},
+        {id: 'StudioRadar', key: 'studioRadar'},
+        {id: 'PCAScatter', key: 'pcaScatter'}
+      ];
+      
+      chartsConfig.forEach(config => {
+        const chartDom = document.getElementById(config.id);
+        if (chartDom) {
+          try {
             charts[config.key] = echarts.init(chartDom);
+            console.log(`图表 ${config.id} 初始化成功`);
+          } catch (e) {
+            console.error(`图表 ${config.id} 初始化失败:`, e);
           }
-        });
-        
-        // 更新所有图表为"所有年份"数据
-        updateAllCharts('all');
-        
-        console.log('所有图表初始化完成');
-      }).catch(error => {
-        console.error('初始化可视化时出错:', error);
+        } else {
+          console.error(`找不到图表DOM元素: ${config.id}`);
+        }
       });
+      
+      // 更新所有图表为"所有年份"数据
+      updateAllCharts('all');
+      
+      console.log('所有图表初始化完成');
     }
   </script>
 </body>
